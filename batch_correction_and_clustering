@@ -23,3 +23,39 @@ sce@assays@data$exprs <- t(harmony_output)
 #to visually inspect umap
 uncorrected <- sce
 uncorrected@assays@data$exprs <- uncorrected@assays@data$uncorrected
+##================================================================================================================================
+#cluster
+#this clustering doesn't consider IgA1, IgA2 or IgG to avoid artificial separation of clusters
+set.seed(119)
+calibrate <- CATALYST::cluster(sce, features = "type", xdim = 10, ydim = 10, maxK = 30, verbose = T, seed = 119)
+uncorrected <- CATALYST::cluster(uncorrected, features = "type", xdim = 10, ydim = 10, maxK = 30, verbose = T, seed = 1994)
+delta <- delta_area(uncorrected)
+delta <- delta$data
+ggplot(delta, aes(x = k, y = y))+geom_point(size = 5)+geom_line(linewidth = 1.5)+
+  theme_classic()+
+  theme(axis.text = element_text(colour = "black", size = 18), 
+        axis.title = element_text(size = 18, colour = "black"))+
+  xlab("K (number of clusters)")+ylab("Relative change in \n area under CDF curve")
+
+calibrate <- runDR(calibrate, "UMAP", cells = 1000, features = "type")
+uncorrected <- runDR(uncorrected, "UMAP", cells = 1000, features = "type")
+#saving object
+save(calibrate, file = "CALIBRATE.harmony.Robj")
+#check clustering and umap
+p1 <- plotDR(calibrate, "UMAP", color_by = "meta20")+theme_classic()+
+  scale_colour_manual(values = c25)
+ggsave(plot = p1, filename = "UMAP.meta20.png", dpi = 500, height = 8, width = 10)
+#only keeping relevant visits for visualisation
+calibrate2 <- filterSCE(calibrate, k = "Labels", Visit_Number %in% c("0", "8", "14", "18"))
+plotDR(calibrate2, "UMAP", color_by = "Visit_Number", facet_by = "Treatment_Group")+theme_classic()
+plotDR(uncorrected, "UMAP", color_by = "Sex", facet_by = "Sex")+theme_classic()
+plotDR(calibrate, "UMAP", color_by = "Treatment_Group", facet_by = "Visit_Number")+theme_classic()
+hm <- plotExprHeatmap(calibrate, features = c("IgD", "CD27", "CD38", "CD21", "CD24",
+                                             "CD11c", "Tbet", "ITGB7", "ITGB1", "CCR9",
+                                             "IgG", "IgA1", "IgA2", "CCR10", "CLA",
+                                             "CXCR3", "CXCR4", "CXCR5", "ITGA4"), 
+                      by = "cluster_id", k = "meta20", bars = T, perc = T, scale = "last",
+                      col_clust = F, hm_pal = rev(hcl.colors(10, "Reds")))
+hm <- hm@matrix
+hm2 <- pheatmap::pheatmap(hm, scale = "none", color = rev(hcl.colors(100, "Reds")), border_color = "black",
+                          cluster_cols = F, cellheight = 20, cellwidth = 20)
