@@ -1,0 +1,25 @@
+#HARMONY BATCH CORRECTION AND CLUSTERING
+#pull out expression data
+expdata <- sce@assays@data$exprs
+#pull out batch (and other variables to control for) data
+batch <- sce@colData$Batch
+sex <- sce@colData$Sex
+age <- sce@colData$Age
+meta <- data.frame(batch, sex, age)
+dim(expdata)
+dim(meta)
+#tranpose data
+expdata <- t(expdata)
+#check row numbers are equal
+nrow(expdata)
+nrow(meta)
+#run harmony, makes new matrix (takes at least 2 hours)
+harmony_output <- HarmonyMatrix(expdata, meta_data = meta, do_pca = F, vars_use = c("batch", "age", "sex"))
+#rename old expression data so that it's still in object
+sce@assays@data$uncorrected <- sce@assays@data$exprs
+#add in new harmony data as the new 'exprs' data
+sce@assays@data$exprs <- t(harmony_output)
+#having two objects - one with harmony as the main data, one with uncorrected, so i can run clustering on both
+#to visually inspect umap
+uncorrected <- sce
+uncorrected@assays@data$exprs <- uncorrected@assays@data$uncorrected
