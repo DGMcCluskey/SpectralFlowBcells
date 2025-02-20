@@ -1,0 +1,64 @@
+library(CATALYST)
+library(harmony)
+library(cowplot)
+library(flowCore)
+library(diffcyt)
+library(scater)
+library(SingleCellExperiment)
+library(viridis)
+library(RColorBrewer)
+library(ggforce)
+library(ggplot2)
+library(ggrepel)
+library(ggsci)
+library(data.table)
+library(emmeans)
+library(dplyr)
+library(tidyr)
+library(ggsignif)
+library(rstatix)
+library(multcomp)
+library(pzfx)
+library(quickpalette)
+library(scales)
+library(ggthemes)
+library(slingshot)
+library(ggbeeswarm)
+library(ggbreak)
+library(DescTools)
+library(glmmTMB)
+library(sjPlot)
+library(modelbased)
+library(ggridges)
+library(patchwork)
+library(lme4)
+library(sjtable2df)
+library(cowplot)
+
+#load in fcs files (files exported from sony software to fcs files and then renamed for easier use prior)
+fcs <- list.files(pattern = ".fcs$")
+#saving file names as csv so i can add that to metadata file later
+write.csv(fcs, file = "FCS.file.names.csv")
+fs <- read.flowSet(fcs, transformation = F, truncate_max_range = F)
+#removing columns FSC,SSC,TIME, LIVE/DEAD columns and CD3
+colnames(fs)
+fs <- fs[,-c(19,24)]
+colnames(fs)
+#export remaining colnames to csv to create first of 2 metadata files needed for analysis
+cols <- colnames(fs)
+cols <- as.data.frame(cols)
+#add marker details in excel as second column
+write.csv(cols, file = "Marker.metadata.csv")
+#IgA1, IgA2 and IgG set as "state" markers so that they won't be considered in clustering
+#markers table read back in to use here
+markers <- read.csv("Marker.metadata.csv")
+#for second metadata table, get fcs file names and add sample ID, treatment group etc in excel then load in csv
+samples <- read.csv("Sample.metadata.csv")
+#now all data is prepped, the singlecellexperiment object is made
+#try a variety of cofactors (10,50,100,500, 1000, 5000) to see which transforms the data the best
+sce.1000 <- prepData(x = fs, panel = markers, md = samples, FACS = T, transform = T, cofactor = 1000,
+                     panel_cols = list(channel = "channel", antigen = "marker"),
+                     md_cols = list(file = "file_name", id = "sample_id",
+                                    factors = c("Public_PID", "Visit_Number", "Visit_Description",
+                                                "Treatment_Group", "Study_Days", "Responder", "Sex",
+                                                "Age", "Ethnicity", "Batch")))
